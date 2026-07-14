@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  // Swap to "postgresql" + update DATABASE_URL to migrate later.
+  provider = "sqlite"
+}
+
+// Fixed enum for now. To support user-customizable statuses later, replace
+// with a Status model (id, name, color, sortOrder) and change Todo.status
+// to a statusId FK — Kanban column order would then follow sortOrder.
+enum Status {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Todo {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      Status    @default(TODO)
+  urgent      Boolean   @default(false)
+  important   Boolean   @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tags        TagsOnTodos[]
+
+  @@index([status])
+}
+
+model Tag {
+  id    String @id @default(cuid())
+  name  String @unique
+  color String // hex, e.g. "#f97316" — used for TagBadge background
+  todos TagsOnTodos[]
+}
+
+model TagsOnTodos {
+  todo   Todo   @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  todoId String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId  String
+
+  @@id([todoId, tagId])
+}

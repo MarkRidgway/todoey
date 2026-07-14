@@ -1,0 +1,69 @@
+import "dotenv/config";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaClient, type Status } from "../lib/generated/prisma/client";
+
+const adapter = new PrismaBetterSqlite3({
+  url: process.env.DATABASE_URL ?? "file:./dev.db",
+});
+const prisma = new PrismaClient({ adapter });
+
+async function main() {
+  await prisma.tagsOnTodos.deleteMany();
+  await prisma.todo.deleteMany();
+  await prisma.tag.deleteMany();
+
+  const [work, personal, urgent, health] = await Promise.all([
+    prisma.tag.create({ data: { name: "Work", color: "#3b82f6" } }),
+    prisma.tag.create({ data: { name: "Personal", color: "#10b981" } }),
+    prisma.tag.create({ data: { name: "Urgent", color: "#ef4444" } }),
+    prisma.tag.create({ data: { name: "Health", color: "#f59e0b" } }),
+  ]);
+
+  const now = Date.now();
+  const days = (n: number) => new Date(now + n * 86_400_000);
+
+  const todos: Array<{
+    title: string;
+    description?: string;
+    status: Status;
+    urgent: boolean;
+    important: boolean;
+    dueDate?: Date;
+    tagIds: string[];
+  }> = [
+    { title: "Finish Q3 budget review", description: "Reconcile spend vs forecast", status: "IN_PROGRESS", urgent: true, important: true, dueDate: days(1), tagIds: [work.id, urgent.id] },
+    { title: "Prep client demo slides", status: "TODO", urgent: true, important: true, dueDate: days(2), tagIds: [work.id] },
+    { title: "Plan family vacation", status: "TODO", urgent: false, important: true, dueDate: days(30), tagIds: [personal.id] },
+    { title: "Read 'Deep Work'", status: "TODO", urgent: false, important: true, tagIds: [personal.id] },
+    { title: "Annual physical checkup", status: "TODO", urgent: false, important: true, dueDate: days(10), tagIds: [health.id] },
+    { title: "Respond to non-critical emails", status: "TODO", urgent: true, important: false, tagIds: [work.id] },
+    { title: "Approve routine expense reports", status: "IN_PROGRESS", urgent: true, important: false, tagIds: [work.id] },
+    { title: "Reorganize downloads folder", status: "TODO", urgent: false, important: false, tagIds: [] },
+    { title: "Browse social media", status: "TODO", urgent: false, important: false, tagIds: [] },
+    { title: "Renew gym membership", status: "DONE", urgent: false, important: true, tagIds: [health.id] },
+    { title: "Submit expense report", status: "DONE", urgent: true, important: true, tagIds: [work.id] },
+    { title: "Water the plants", status: "DONE", urgent: false, important: false, tagIds: [personal.id] },
+  ];
+
+  for (const t of todos) {
+    await prisma.todo.create({
+      data: {
+        title: t.title,
+        description: t.description,
+        status: t.status,
+        urgent: t.urgent,
+        important: t.important,
+        dueDate: t.dueDate,
+        tags: { create: t.tagIds.map((tagId) => ({ tagId })) },
+      },
+    });
+  }
+}
+
+main()
+  .then(() => prisma.$disconnect())
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });
