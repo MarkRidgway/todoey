@@ -7,8 +7,7 @@ generator client {
 }
 
 datasource db {
-  // Swap to "postgresql" + update DATABASE_URL to migrate later.
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // Fixed enum for now. To support user-customizable statuses later, replace
