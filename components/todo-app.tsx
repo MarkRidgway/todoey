@@ -32,15 +32,19 @@ import type { Status } from "@/lib/generated/prisma/client";
 import type { TodoInput } from "@/lib/validation";
 
 export function TodoApp({
+  listKey,
   initialTodos,
   initialTags,
+  enabledViews,
 }: {
+  listKey: string;
   initialTodos: TodoWithTags[];
   initialTags: Tag[];
+  enabledViews: ViewId[];
 }) {
   const [todos, setTodos] = useState(initialTodos);
   const [tags, setTags] = useState(initialTags);
-  const [view, setView] = useState<ViewId>("list");
+  const [view, setView] = useState<ViewId>(enabledViews[0] ?? "list");
   const [, startTransition] = useTransition();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -64,14 +68,14 @@ export function TodoApp({
   async function handleFormSubmit(input: TodoInput) {
     if (editingTodo) {
       try {
-        const updated = await updateTodo(editingTodo.id, input);
+        const updated = await updateTodo(listKey, editingTodo.id, input);
         setTodos((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       } catch {
         toast.error("Failed to update todo");
       }
     } else {
       try {
-        const created = await createTodo(input);
+        const created = await createTodo(listKey, input);
         setTodos((prev) => [created, ...prev]);
       } catch {
         toast.error("Failed to create todo");
@@ -83,7 +87,7 @@ export function TodoApp({
     const previous = todos;
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)));
     startTransition(() => {
-      setTodoStatus(id, status).catch(() => {
+      setTodoStatus(listKey, id, status).catch(() => {
         setTodos(previous);
         toast.error("Failed to update status");
       });
@@ -94,7 +98,7 @@ export function TodoApp({
     const previous = todos;
     setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, urgent, important } : t)));
     startTransition(() => {
-      setTodoQuadrant(id, urgent, important).catch(() => {
+      setTodoQuadrant(listKey, id, urgent, important).catch(() => {
         setTodos(previous);
         toast.error("Failed to update todo");
       });
@@ -116,7 +120,7 @@ export function TodoApp({
     setTodos((prev) => prev.filter((t) => t.id !== id));
     setDeletingTodo(null);
     try {
-      await deleteTodo(id);
+      await deleteTodo(listKey, id);
     } catch {
       setTodos(previous);
       toast.error("Failed to delete todo");
@@ -125,7 +129,7 @@ export function TodoApp({
 
   async function handleCreateTag(name: string, color: string): Promise<Tag | null> {
     try {
-      const tag = await createTag({ name, color });
+      const tag = await createTag(listKey, { name, color });
       setTags((prev) => [...prev, tag]);
       return tag;
     } catch {
@@ -140,7 +144,7 @@ export function TodoApp({
     const existing = tags.find((t) => t.id === tagId);
     if (!existing) return;
     try {
-      await updateTag(tagId, { name, color: existing.color });
+      await updateTag(listKey, tagId, { name, color: existing.color });
     } catch {
       setTags(previous);
       toast.error("Failed to rename tag");
@@ -153,7 +157,7 @@ export function TodoApp({
     const existing = tags.find((t) => t.id === tagId);
     if (!existing) return;
     try {
-      await updateTag(tagId, { name: existing.name, color });
+      await updateTag(listKey, tagId, { name: existing.name, color });
     } catch {
       setTags(previous);
       toast.error("Failed to recolor tag");
@@ -166,7 +170,7 @@ export function TodoApp({
     setTags((prev) => prev.filter((t) => t.id !== tagId));
     setTodos((prev) => prev.map((t) => ({ ...t, tags: t.tags.filter((tag) => tag.id !== tagId) })));
     try {
-      await deleteTag(tagId);
+      await deleteTag(listKey, tagId);
     } catch {
       setTags(previousTags);
       setTodos(previousTodos);
@@ -199,7 +203,7 @@ export function TodoApp({
         </div>
       </div>
 
-      <ViewSwitcher view={view} onViewChange={setView} />
+      <ViewSwitcher view={view} onViewChange={setView} enabledViews={enabledViews} />
 
       {view === "list" && (
         <ListView

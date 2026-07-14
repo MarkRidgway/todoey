@@ -9,12 +9,16 @@ async function main() {
   await prisma.tagsOnTodos.deleteMany();
   await prisma.todo.deleteMany();
   await prisma.tag.deleteMany();
+  await prisma.listSettings.deleteMany();
+  await prisma.list.deleteMany();
+
+  const list = await prisma.list.create({ data: { settings: { create: {} } } });
 
   const [work, personal, urgent, health] = await Promise.all([
-    prisma.tag.create({ data: { name: "Work", color: "#3b82f6" } }),
-    prisma.tag.create({ data: { name: "Personal", color: "#10b981" } }),
-    prisma.tag.create({ data: { name: "Urgent", color: "#ef4444" } }),
-    prisma.tag.create({ data: { name: "Health", color: "#f59e0b" } }),
+    prisma.tag.create({ data: { listId: list.id, name: "Work", color: "#3b82f6" } }),
+    prisma.tag.create({ data: { listId: list.id, name: "Personal", color: "#10b981" } }),
+    prisma.tag.create({ data: { listId: list.id, name: "Urgent", color: "#ef4444" } }),
+    prisma.tag.create({ data: { listId: list.id, name: "Health", color: "#f59e0b" } }),
   ]);
 
   const now = Date.now();
@@ -46,6 +50,7 @@ async function main() {
   for (const t of todos) {
     await prisma.todo.create({
       data: {
+        listId: list.id,
         title: t.title,
         description: t.description,
         status: t.status,
@@ -56,6 +61,8 @@ async function main() {
       },
     });
   }
+
+  console.log(`Seeded list: ${list.id}`);
 }
 
 main()

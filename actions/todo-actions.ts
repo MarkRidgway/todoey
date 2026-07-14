@@ -8,6 +8,11 @@ import type { Status } from "@/lib/generated/prisma/client";
 
 const TODO_WITH_TAGS_INCLUDE = { tags: { include: { tag: true } } } as const;
 
+async function requireOwnedTodo(listId: string, id: string) {
+  const todo = await prisma.todo.findFirst({ where: { id, listId }, select: { id: true } });
+  if (!todo) throw new Error("Todo not found in this list");
+}
+
 async function syncTodoTags(todoId: string, tagIds: string[]) {
   const existing = await prisma.tagsOnTodos.findMany({ where: { todoId } });
   const existingIds = new Set(existing.map((r) => r.tagId));
@@ -24,11 +29,12 @@ async function syncTodoTags(todoId: string, tagIds: string[]) {
   ]);
 }
 
-export async function createTodo(input: TodoInput) {
+export async function createTodo(listId: string, input: TodoInput) {
   const data = TodoInputSchema.parse(input);
 
   const todo = await prisma.todo.create({
     data: {
+      listId,
       title: data.title,
       description: data.description,
       status: data.status,
@@ -40,12 +46,13 @@ export async function createTodo(input: TodoInput) {
     include: TODO_WITH_TAGS_INCLUDE,
   });
 
-  revalidatePath("/");
+  revalidatePath(`/${listId}`);
   return flattenTodoTags(todo);
 }
 
-export async function updateTodo(id: string, input: TodoInput) {
+export async function updateTodo(listId: string, id: string, input: TodoInput) {
   const data = TodoInputSchema.parse(input);
+  await requireOwnedTodo(listId, id);
 
   await syncTodoTags(id, data.tagIds);
 
@@ -62,31 +69,34 @@ export async function updateTodo(id: string, input: TodoInput) {
     include: TODO_WITH_TAGS_INCLUDE,
   });
 
-  revalidatePath("/");
+  revalidatePath(`/${listId}`);
   return flattenTodoTags(todo);
 }
 
-export async function deleteTodo(id: string) {
+export async function deleteTodo(listId: string, id: string) {
+  await requireOwnedTodo(listId, id);
   await prisma.todo.delete({ where: { id } });
-  revalidatePath("/");
+  revalidatePath(`/${listId}`);
 }
 
-export async function setTodoStatus(id: string, status: Status) {
+export async function setTodoStatus(listId: string, id: string, status: Status) {
+  await requireOwnedTodo(listId, id);
   const todo = await prisma.todo.update({
     where: { id },
     data: { status },
     include: TODO_WITH_TAGS_INCLUDE,
   });
-  revalidatePath("/");
+  revalidatePath(`/${listId}`);
   return flattenTodoTags(todo);
 }
 
-export async function setTodoQuadrant(id: string, urgent: boolean, important: boolean) {
+export async function setTodoQuadrant(listId: string, id: string, urgent: boolean, important: boolean) {
+  await requireOwnedTodo(listId, id);
   const todo = await prisma.todo.update({
     where: { id },
     data: { urgent, important },
     include: TODO_WITH_TAGS_INCLUDE,
   });
-  revalidatePath("/");
+  revalidatePath(`/${listId}`);
   return flattenTodoTags(todo);
 }
