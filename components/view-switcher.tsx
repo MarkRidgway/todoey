@@ -11,11 +11,20 @@ export const VIEWS = [
 
 export type ViewId = (typeof VIEWS)[number]["id"];
 
-export function ViewSwitcher({ view, onViewChange }: { view: ViewId; onViewChange: (view: ViewId) => void }) {
+export function ViewSwitcher({
+  view,
+  onViewChange,
+  enabledViews,
+}: {
+  view: ViewId;
+  onViewChange: (view: ViewId) => void;
+  enabledViews: ViewId[];
+}) {
+  const visibleViews = VIEWS.filter((v) => enabledViews.includes(v.id));
   return (
     <Tabs value={view} onValueChange={(v) => onViewChange(v as ViewId)}>
       <TabsList>
-        {VIEWS.map((v) => (
+        {visibleViews.map((v) => (
           <TabsTrigger key={v.id} value={v.id}>
             {v.label}
           </TabsTrigger>

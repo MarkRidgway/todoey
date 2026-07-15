@@ -23,3 +23,8 @@ export const TagInputSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color"),
 });
 export type TagInput = z.infer<typeof TagInputSchema>;
+
+export const ListKeySchema = z.string().uuid();
+export function isValidListKey(key: string): boolean {
+  return ListKeySchema.safeParse(key).success;
+}
